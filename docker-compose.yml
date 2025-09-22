@@ -1,0 +1,84 @@
+version: '3.9'
+
+services:
+  admin-portal:
+    build: ./admin-portal
+    container_name: admin-portal
+    env_file:
+      - ./admin-portal/.env
+    networks:
+      - ems-network
+    depends_on:
+      - api-gateway
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    env_file:
+      - ./api-gateway/.env
+    networks:
+      - ems-network
+    depends_on:
+      - auth-service
+      - client-store-service
+      - vehicle-service
+      - rider-service
+      - spare-parts-service
+
+  auth-service:
+    build: ./services/auth-service
+    container_name: auth-service
+    env_file:
+      - ./services/auth-service/.env
+    networks:
+      - ems-network
+
+  client-store-service:
+    build: ./services/client-store-service
+    container_name: client-store-service
+    env_file:
+      - ./services/client-store-service/.env
+    networks:
+      - ems-network
+
+  spare-parts-service:
+    build: ./services/spare-parts-service
+    container_name: spare-parts-service
+    env_file:
+      - ./services/spare-parts-service/.env
+    networks:
+      - ems-network
+
+  vehicle-service:
+    build: ./services/vehicle-service
+    container_name: vehicle-service
+    env_file:
+      - ./services/vehicle-service/.env
+    networks:
+      - ems-network
+
+  rider-service:
+    build: ./services/rider-service
+    container_name: rider-service
+    env_file:
+      - ./services/rider-service/.env
+    networks:
+      - ems-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - admin-portal
+      - api-gateway
+    networks:
+      - ems-network
+
+networks:
+  ems-network:
+    driver: bridge

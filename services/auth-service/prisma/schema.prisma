@@ -1,0 +1,226 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  password      String
+  firstName     String?
+  lastName      String?
+  phone         String?
+  // REMOVED: role String @default("user") (legacy - use UserRole instead)
+  isActive      Boolean    @default(true)
+  emailVerified Boolean    @default(false)
+  lastLoginAt   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  employee      Employee?
+  sessions      Session[]
+  userRoles     UserRole[]
+
+  @@map("users")
+}
+
+model Department {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  code        String?    @unique
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  employees   Employee[]
+  teams       Team[]
+
+  // Hierarchy support
+  parentId    String?
+  parent      Department? @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children    Department[] @relation("DepartmentHierarchy")
+
+  @@map("departments")
+}
+
+model Team {
+  id           String     @id @default(cuid())
+  name         String
+  description  String?
+  departmentId String
+  managerId    String?
+  isActive     Boolean    @default(true)
+  city         String?
+  state        String?
+  memberCount  Int        @default(0)
+  maxMembers   Int        @default(10)
+  skills       String?    // JSON string of skills array
+  status       String     @default("Active") // "Active" or "Inactive"
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  employees    Employee[]
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  manager      Employee?  @relation("TeamManager", fields: [managerId], references: [id])
+
+  @@unique([name, departmentId])
+  @@map("teams")
+}
+
+model Employee {
+  id           String     @id @default(cuid())
+  userId       String     @unique
+  employeeId   String     @unique
+  // REMOVED: firstName, lastName, email, isActive, phone (use User table)
+  position     String?
+  departmentId String
+  teamId       String?
+  managerId    String?
+  hireDate     DateTime
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  department   Department @relation(fields: [departmentId], references: [id])
+  manager      Employee?  @relation("EmployeeManager", fields: [managerId], references: [id])
+  subordinates Employee[] @relation("EmployeeManager")
+  team         Team?      @relation(fields: [teamId], references: [id])
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  managedTeams Team[]     @relation("TeamManager")
+
+  @@map("employees")
+}
+
+// Client model - Business entities that have stores
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  level       Int              @default(1)
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  permissions RolePermission[]
+  userRoles   UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id              String           @id @default(cuid())
+  name            String           @unique
+  description     String?
+  service         String
+  resource        String
+  action          String
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  rolePermissions RolePermission[]
+
+  @@unique([service, resource, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id        String    @id @default(cuid())
+  userId    String
+  roleId    String
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  createdBy String?
+  role      Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  refreshToken String?  @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// Email verification tokens
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("email_verification_tokens")
+}
+
+// Password reset tokens
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("password_reset_tokens")
+}
+
+// City Model (Synchronized from Vehicle Service)
+model City {
+  id String @id @default(cuid())
+
+  // Basic Information
+  name        String @unique // Mumbai, Delhi, Bangalore, etc.
+  displayName String // Mumbai, New Delhi, Bengaluru, etc.
+  code        String @unique // MUM, DEL, BLR, etc.
+
+  // Location Details
+  state    String // Maharashtra, Delhi, Karnataka, etc.
+  country  String @default("India")
+  timezone String @default("Asia/Kolkata")
+
+  // Geographic Coordinates (City Center)
+  latitude  Float
+  longitude Float
+
+  // Administrative Details
+  pinCodeRange String? // JSON array of pin codes served
+  regionCode   String? // North, South, East, West
+
+  // Operational Details
+  isActive      Boolean   @default(true)
+  isOperational Boolean   @default(true) // City operational for services
+  launchDate    DateTime?
+
+  // Business Information
+  estimatedPopulation Int?
+  marketPotential     String? // High, Medium, Low
+
+  // Event Sourcing Fields (for cross-service synchronization)
+  version        Int      @default(1)
+  lastModifiedBy String   @default("system")
+  eventSequence  Int      @default(0)
+  lastSyncAt     DateTime @default(now())
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cities")
+}
