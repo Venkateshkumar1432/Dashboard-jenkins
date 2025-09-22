@@ -34,35 +34,6 @@ pipeline {
             }
         }
 
-        stage('Detect Changes') {
-    steps {
-        script {
-            def changedServices = []
-
-            // Check if first build
-            def firstBuild = sh(script: "git rev-parse HEAD~1 || echo 'first'", returnStdout: true).trim()
-            if (firstBuild == "first") {
-                echo "📌 First build detected, will rebuild all services."
-                changedServices = ["auth-service","client-store-service","spare-parts-service","vehicle-service","rider-service","api-gateway","admin-portal"]
-            } else {
-                def changedFiles = sh(script: "git diff --name-only HEAD~1 HEAD", returnStdout: true).trim()
-                echo "📝 Changed files:\n${changedFiles}"
-
-                if (changedFiles.contains("services/auth-service/")) changedServices << "auth-service"
-                if (changedFiles.contains("services/client-store-service/")) changedServices << "client-store-service"
-                if (changedFiles.contains("services/spare-parts-service/")) changedServices << "spare-parts-service"
-                if (changedFiles.contains("services/vehicle-service/")) changedServices << "vehicle-service"
-                if (changedFiles.contains("services/rider-service/")) changedServices << "rider-service"
-                if (changedFiles.contains("api-gateway/")) changedServices << "api-gateway"
-                if (changedFiles.contains("admin-portal/")) changedServices << "admin-portal"
-            }
-
-            env.CHANGED_SERVICES = changedServices.join(" ")
-            echo "➡️ Services to rebuild: ${env.CHANGED_SERVICES}"
-        }
-    }
-}
-
 
         stage('Build & Deploy Changed Services') {
             when {
