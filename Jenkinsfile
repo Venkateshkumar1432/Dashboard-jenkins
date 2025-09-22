@@ -5,7 +5,7 @@ pipeline {
         stage('Clone Repo') {
             steps {
                 echo "📥 Cloning repository..."
-                git branch: 'main', url: 'https://github.com/YOUR_ORG/YOUR_REPO.git'
+                git branch: 'main', url: 'https://github.com/Venkateshkumar1432/Dashboard-jenkins.git'
             }
         }
 
