@@ -35,49 +35,34 @@ pipeline {
         }
 
         stage('Detect Changes') {
-            steps {
-                script {
-                    CHANGED = sh(
-                        script: "git diff --name-only HEAD~1 HEAD",
-                        returnStdout: true
-                    ).trim()
+    steps {
+        script {
+            def changedServices = []
 
-                    echo "📝 Changed files:\n${CHANGED}"
+            // Check if first build
+            def firstBuild = sh(script: "git rev-parse HEAD~1 || echo 'first'", returnStdout: true).trim()
+            if (firstBuild == "first") {
+                echo "📌 First build detected, will rebuild all services."
+                changedServices = ["auth-service","client-store-service","spare-parts-service","vehicle-service","rider-service","api-gateway","admin-portal"]
+            } else {
+                def changedFiles = sh(script: "git diff --name-only HEAD~1 HEAD", returnStdout: true).trim()
+                echo "📝 Changed files:\n${changedFiles}"
 
-                    CHANGED_SERVICES = []
-                    if (CHANGED.contains("services/auth-service/")) {
-                        echo "📌 Auth Service changed"
-                        CHANGED_SERVICES << "auth-service"
-                    }
-                    if (CHANGED.contains("services/client-store-service/")) {
-                        echo "📌 Client Store Service changed"
-                        CHANGED_SERVICES << "client-store-service"
-                    }
-                    if (CHANGED.contains("services/spare-parts-service/")) {
-                        echo "📌 Spare Parts Service changed"
-                        CHANGED_SERVICES << "spare-parts-service"
-                    }
-                    if (CHANGED.contains("services/vehicle-service/")) {
-                        echo "📌 Vehicle Service changed"
-                        CHANGED_SERVICES << "vehicle-service"
-                    }
-                    if (CHANGED.contains("services/rider-service/")) {
-                        echo "📌 Rider Service changed"
-                        CHANGED_SERVICES << "rider-service"
-                    }
-                    if (CHANGED.contains("api-gateway/")) {
-                        echo "📌 API Gateway changed"
-                        CHANGED_SERVICES << "api-gateway"
-                    }
-                    if (CHANGED.contains("admin-portal/")) {
-                        echo "📌 Admin Portal changed"
-                        CHANGED_SERVICES << "admin-portal"
-                    }
-                    env.CHANGED_SERVICES = CHANGED_SERVICES.join(" ")
-                    echo "➡️ Services to rebuild: ${env.CHANGED_SERVICES}"
-                }
+                if (changedFiles.contains("services/auth-service/")) changedServices << "auth-service"
+                if (changedFiles.contains("services/client-store-service/")) changedServices << "client-store-service"
+                if (changedFiles.contains("services/spare-parts-service/")) changedServices << "spare-parts-service"
+                if (changedFiles.contains("services/vehicle-service/")) changedServices << "vehicle-service"
+                if (changedFiles.contains("services/rider-service/")) changedServices << "rider-service"
+                if (changedFiles.contains("api-gateway/")) changedServices << "api-gateway"
+                if (changedFiles.contains("admin-portal/")) changedServices << "admin-portal"
             }
+
+            env.CHANGED_SERVICES = changedServices.join(" ")
+            echo "➡️ Services to rebuild: ${env.CHANGED_SERVICES}"
         }
+    }
+}
+
 
         stage('Build & Deploy Changed Services') {
             when {
