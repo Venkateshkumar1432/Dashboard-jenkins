@@ -13,6 +13,7 @@ if [ ! -f ".first_deploy_done" ]; then
       sname=$(basename $svc)
       docker-compose run --rm $sname npx prisma db push
       docker-compose run --rm $sname npx prisma db seed || true
+      docker-compose run --rm $sname npx tsx prisma/seed || true
     fi
   done
 
@@ -30,6 +31,7 @@ else
         sname=$(basename $svc)
         docker-compose run --rm $sname npx prisma db push
         docker-compose run --rm $sname npx prisma db seed || true
+        docker-compose run --rm $sname npx tsx prisma/seed || true
       fi
     done
   fi
