@@ -51,14 +51,13 @@ pipeline {
     steps {
         sshagent(credentials: [EC2_KEY]) {
             sh """
-                # Create a temporary folder for deployment
                 TMP_DIR=tmp_deploy
                 mkdir -p \$TMP_DIR
 
-                # Copy all project folders and files needed for deployment
+                # Copy project files
                 cp -r admin-portal api-gateway services docker-compose.yml deploy.sh \$TMP_DIR/
 
-                # Copy .env files separately to maintain permissions
+                # Copy .env files
                 cp services/auth-service/.env \$TMP_DIR/services/auth-service/.env
                 cp services/client-store-service/.env \$TMP_DIR/services/client-store-service/.env
                 cp services/rider-service/.env \$TMP_DIR/services/rider-service/.env
@@ -67,16 +66,19 @@ pipeline {
                 cp api-gateway/.env \$TMP_DIR/api-gateway/.env
                 cp admin-portal/.env \$TMP_DIR/admin-portal/.env
 
-                # Create tar.gz from the temporary folder
-                tar czf app.tar.gz -C \$TMP_DIR .
+                # Copy nginx.conf explicitly
+                cp nginx.conf \$TMP_DIR/nginx.conf
 
-                # Clean up temporary folder
+                # Create tar.gz package
+                tar czf ../app.tar.gz -C \$TMP_DIR .
+
+                # Clean temporary folder
                 rm -rf \$TMP_DIR
 
                 # Send tar.gz to EC2
-                scp -o StrictHostKeyChecking=no app.tar.gz ${EC2_HOST}:/tmp/
+                scp -o StrictHostKeyChecking=no ../app.tar.gz ${EC2_HOST}:/tmp/
 
-                # Extract on EC2 and remove tar
+                # Extract on EC2
                 ssh -o StrictHostKeyChecking=no ${EC2_HOST} '
                     mkdir -p ${EC2_PATH} &&
                     tar xzf /tmp/app.tar.gz -C ${EC2_PATH} &&
@@ -86,6 +88,7 @@ pipeline {
         }
     }
 }
+
 
 
     stage('Deploy on EC2') {
