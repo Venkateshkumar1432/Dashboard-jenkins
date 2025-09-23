@@ -9,7 +9,7 @@ pipeline {
         ENV_ADMIN_PORTAL     = 'admin-portal-env-file'
         ENV_API_GATEWAY      = 'api-gateway-env-file'
         ENV_AUTH_SERVICE     = 'auth-service-env-file'
-        ENV_CLIENT_SERVICE   = 'client-service-env-file'
+        ENV_CLIENT_SERVICE   = 'client-store-service-env-file'
         ENV_RIDER_SERVICE    = 'rider-service-env-file'
         ENV_VEHICLE_SERVICE  = 'vehicle-service-env-file'
         ENV_SPARE_SERVICE    = 'spare-parts-service-env-file'
