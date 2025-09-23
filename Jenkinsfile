@@ -24,33 +24,32 @@ pipeline {
             }
         }
 
-        stage('Copy Env Files') {
-            steps {
-                script {
-                    withCredentials([file(credentialsId: "${ENV_ADMIN_PORTAL}", variable: 'ADMIN_ENV')]) {
-                        sh 'cp $ADMIN_ENV admin-portal/.env'
-                    }
-                    withCredentials([file(credentialsId: "${ENV_API_GATEWAY}", variable: 'GATEWAY_ENV')]) {
-                        sh 'cp $GATEWAY_ENV api-gateway/.env'
-                    }
-                    withCredentials([file(credentialsId: "${ENV_AUTH_SERVICE}", variable: 'AUTH_ENV')]) {
-                        sh 'cp $AUTH_ENV services/auth-service/.env'
-                    }
-                    withCredentials([file(credentialsId: "${ENV_CLIENT_SERVICE}", variable: 'CLIENT_ENV')]) {
-                        sh 'cp $CLIENT_ENV services/client-store-service/.env'
-                    }
-                    withCredentials([file(credentialsId: "${ENV_RIDER_SERVICE}", variable: 'RIDER_ENV')]) {
-                        sh 'cp $RIDER_ENV services/rider-service/.env'
-                    }
-                    withCredentials([file(credentialsId: "${ENV_VEHICLE_SERVICE}", variable: 'VEHICLE_ENV')]) {
-                        sh 'cp $VEHICLE_ENV services/vehicle-service/.env'
-                    }
-                    withCredentials([file(credentialsId: "${ENV_SPARE_SERVICE}", variable: 'SPARE_ENV')]) {
-                        sh 'cp $SPARE_ENV services/spare-parts-service/.env'
-                    }
+        stage('Copy/Update Env Files') {
+    steps {
+        script {
+            def services = [
+                ['env': 'ENV_ADMIN_PORTAL', 'path': 'admin-portal'],
+                ['env': 'ENV_API_GATEWAY', 'path': 'api-gateway'],
+                ['env': 'ENV_AUTH_SERVICE', 'path': 'services/auth-service'],
+                ['env': 'ENV_CLIENT_SERVICE', 'path': 'services/client-store-service'],
+                ['env': 'ENV_RIDER_SERVICE', 'path': 'services/rider-service'],
+                ['env': 'ENV_VEHICLE_SERVICE', 'path': 'services/vehicle-service'],
+                ['env': 'ENV_SPARE_SERVICE', 'path': 'services/spare-parts-service']
+            ]
+
+            services.each { s ->
+                // Ensure folder exists
+                sh "mkdir -p ${s.path} && chmod 775 ${s.path}"
+
+                // Copy/overwrite .env file from Jenkins credentials
+                withCredentials([file(credentialsId: "${s.env}", variable: 'ENV_FILE')]) {
+                    sh "cp -f \$ENV_FILE ${s.path}/.env"
                 }
             }
         }
+    }
+}
+
 
         stage('Deploy to EC2') {
             steps {
