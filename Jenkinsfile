@@ -1,181 +1,80 @@
 pipeline {
-    agent any
+  agent any
 
-    environment {
-        GIT_CREDENTIALS = 'GITHUB_CREDS'
-        SSH_CREDENTIALS = 'EC2_SSH'
+  environment {
+    GIT_CREDENTIALS = 'GITHUB_CREDS'        // Jenkins Git credential ID
+    EC2_KEY = 'EC2_SSH'                // Jenkins SSH private key credential
+    EC2_HOST = 'ubuntu@3.110.103.89'        // Replace with your EC2 host
+    EC2_PATH = '/home/ubuntu/microservices'
+  }
 
-        // Env file secrets (per service)
-        ENV_ADMIN_PORTAL     = 'admin-portal-env-file'
-        ENV_API_GATEWAY      = 'api-gateway-env-file'
-        ENV_AUTH_SERVICE     = 'auth-service-env-file'
-        ENV_CLIENT_SERVICE   = 'client-store-service-env-file'
-        ENV_RIDER_SERVICE    = 'rider-service-env-file'
-        ENV_VEHICLE_SERVICE  = 'vehicle-service-env-file'
-        ENV_SPARE_SERVICE    = 'spare-parts-service-env-file'
+  stages {
+    stage('Checkout') {
+      steps {
+        git(credentialsId: "${GIT_CREDENTIALS}", url: 'https://github.com/Venkateshkumar1432/Dashboard-jenkins.git', branch: 'main')
+      }
     }
 
-    stages {
-        stage('Clone Repo') {
-            steps {
-                git branch: 'main',
-                    credentialsId: "${GIT_CREDENTIALS}",
-                    url: 'https://github.com/Venkateshkumar1432/Dashboard-jenkins.git'
-            }
+    stage('Inject .env files') {
+      steps {
+        // 🔑 Ensure Jenkins has ownership + write permission on all files in workspace
+        sh '''
+            sudo chown -R jenkins:jenkins ${WORKSPACE}
+            sudo chmod -R 775 ${WORKSPACE}
+        '''
+        // Example for one service; repeat for each service with its credential id
+        withCredentials([file(credentialsId: 'auth-service-env-file', variable: 'AUTH_ENV')]) {
+          sh 'cp $AUTH_ENV services/auth-service/.env'
         }
-
-        stage('Prepare Env Files') {
-            steps {
-                script {
-                    // Ensure workspace permissions
-                    sh '''
-                    sudo chown -R jenkins:jenkins ${WORKSPACE}
-                    sudo chmod -R 775 ${WORKSPACE}
-                    '''
-
-                    // Services list
-                    def services = [
-                "admin-portal": "admin-portal-env-file",
-                "api-gateway": "api-gateway-env-file",
-                "service/auth-service": "auth-service-env-file",
-                "service/client-store-service": "client-store-service-env-file",
-                "service/rider-service": "rider-service-env-file",
-                "service/vehicle-service": "vehicle-service-env-file",
-                "service/spare-parts-service": "spare-parts-service-env-file"
-            ]
-
-
-                    // Copy/overwrite env files
-                services.each { dir, credId ->
-                sh "mkdir -p ${dir} && chmod 775 ${dir}"
-                withCredentials([file(variable: 'ENV_FILE', credentialsId: credId)]) {
-                    sh "cp -f \$ENV_FILE ${dir}/.env"
-                }
-            }
-                }
-            }
+        withCredentials([file(credentialsId: 'api-gateway-env-file', variable: 'GATEWAY_ENV')]) {
+          sh 'cp $GATEWAY_ENV api-gateway/.env'
         }
-
-
-        stage('Deploy to EC2') {
-    steps {
-        sshagent([SSH_CREDENTIALS]) {
-            script {
-                def firstBuild = currentBuild.getPreviousBuild() == null
-
-                if (firstBuild) {
-                    echo "🚀 First build → build all services + prisma setup"
-                    sh '''
-                        rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" ./ ubuntu@3.110.103.89:~/Dashboard-jenkins
-
-                        ssh -o StrictHostKeyChecking=no ubuntu@3.110.103.89 "
-                            set -e
-                            cd ~/Dashboard-jenkins
-                            docker-compose down || true
-                            docker-compose up -d --build
-
-                            # Run prisma commands in all backend services
-                            for service in auth-service client-store-service rider-service vehicle-service spare-parts-service; do
-                                cd services/$service
-                                npx prisma db push
-                                npx prisma db seed
-                                npx tsx prisma/seed
-                                cd -
-                            done
-                        "
-                    '''
-                } else {
-                    echo "🔄 Subsequent build → deploy changed services only"
-                    sh '''
-                        rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" ./ ubuntu@3.110.103.89:~/Dashboard-jenkins
-
-                        ssh -o StrictHostKeyChecking=no ubuntu@3.110.103.89 "
-                            set -e
-                            cd ~/Dashboard-jenkins
-
-                            # Find changed directories from last commit
-                            CHANGED_DIRS=$(git diff --name-only HEAD~1 HEAD | sort -u | grep -E "^(admin-portal|api-gateway|services/)" | cut -d/ -f1-2)
-
-echo "Changed directories: $CHANGED_DIRS"
-
-for dir in $CHANGED_DIRS; do
-    case $dir in
-        admin-portal)
-            echo "Building and restarting admin-portal..."
-            docker-compose up -d --build admin-portal
-            ;;
-        api-gateway)
-            echo "Building and restarting api-gateway..."
-            docker-compose up -d --build api-gateway
-            ;;
-        services/auth-service)
-            echo "Building and restarting auth-service..."
-            docker-compose up -d --build auth-service
-            if git diff --name-only HEAD~1 HEAD | grep /prisma/schema.prisma; then
-                cd services/auth-service
-                npx prisma db push
-                npx prisma db seed
-                npx tsx prisma/seed
-                cd -
-            fi
-            ;;
-        services/client-store-service)
-            echo "Building and restarting client-store-service..."
-            docker-compose up -d --build client-store-service
-            if git diff --name-only HEAD~1 HEAD | grep /prisma/schema.prisma; then
-                cd services/client-store-service
-                npx prisma db push
-                npx prisma db seed
-                npx tsx prisma/seed
-                cd -
-            fi
-            ;;
-        services/rider-service)
-            echo "Building and restarting rider-service..."
-            docker-compose up -d --build rider-service
-            if git diff --name-only HEAD~1 HEAD | grep /prisma/schema.prisma; then
-                cd services/rider-service
-                npx prisma db push
-                npx prisma db seed
-                npx tsx prisma/seed
-                cd -
-            fi
-            ;;
-        services/vehicle-service)
-            echo "Building and restarting vehicle-service..."
-            docker-compose up -d --build vehicle-service
-            if git diff --name-only HEAD~1 HEAD | grep /prisma/schema.prisma; then
-                cd services/vehicle-service
-                npx prisma db push
-                npx prisma db seed
-                npx tsx prisma/seed
-                cd -
-            fi
-            ;;
-        services/spare-parts-service)
-            echo "Building and restarting spare-parts-service..."
-            docker-compose up -d --build spare-parts-service
-            if git diff --name-only HEAD~1 HEAD | grep /prisma/schema.prisma; then
-                cd services/spare-parts-service
-                npx prisma db push
-                npx prisma db seed
-                npx tsx prisma/seed
-                cd -
-            fi
-            ;;
-        *)
-            echo "Skipping $dir"
-            ;;
-    esac
-done
-
-                        "
-                    '''
-                }
-            }
+        withCredentials([file(credentialsId: 'admin-portal-env-file', variable: 'ADMIN_ENV')]) {
+          sh 'cp $ADMIN_ENV admin-portal/.env'
         }
+        withCredentials([file(credentialsId: 'client-store-service-env-file', variable: 'CLIENT_ENV')]) {
+          sh 'cp $CLIENT_ENV services/client-store-service/.env'
+        }
+        withCredentials([file(credentialsId: 'rider-service-env-file', variable: 'RIDER_ENV')]) {
+          sh 'cp $RIDER_ENV services/rider-service/.env'
+        }
+        withCredentials([file(credentialsId: 'vehicle-service-env-file', variable: 'VEHICLE_ENV')]) {
+          sh 'cp $VEHICLE_ENV services/vehicle-service/.env'
+        }
+        withCredentials([file(credentialsId: 'spare-parts-service-env-file', variable: 'SPARE_ENV')]) {
+          sh 'cp $SPARE_ENV services/spare-parts-service/.env'
+        }
+      }
     }
-}
 
+    stage('Send to EC2') {
+      steps {
+        sshagent(credentials: [EC2_KEY]) {
+          sh """
+            tar czf app.tar.gz .
+            scp -o StrictHostKeyChecking=no app.tar.gz ${EC2_HOST}:/tmp/
+            ssh -o StrictHostKeyChecking=no ${EC2_HOST} '
+              mkdir -p ${EC2_PATH} &&
+              tar xzf /tmp/app.tar.gz -C ${EC2_PATH} &&
+              rm /tmp/app.tar.gz
+            '
+          """
+        }
+      }
     }
+
+    stage('Deploy on EC2') {
+      steps {
+        sshagent(credentials: [EC2_KEY]) {
+          sh """ 
+            ssh -o StrictHostKeyChecking=no ${EC2_HOST} '
+                cd ${EC2_PATH} &&
+                chmod +x deploy.sh &&
+                bash deploy.sh
+            '
+        """
+        }
+      }
+    }
+  }
 }
