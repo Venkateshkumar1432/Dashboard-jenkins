@@ -34,19 +34,19 @@ pipeline {
                         sh 'cp $GATEWAY_ENV api-gateway/.env'
                     }
                     withCredentials([file(credentialsId: "${ENV_AUTH_SERVICE}", variable: 'AUTH_ENV')]) {
-                        sh 'cp $AUTH_ENV service/auth-service/.env'
+                        sh 'cp $AUTH_ENV services/auth-service/.env'
                     }
                     withCredentials([file(credentialsId: "${ENV_CLIENT_SERVICE}", variable: 'CLIENT_ENV')]) {
-                        sh 'cp $CLIENT_ENV service/client-store-service/.env'
+                        sh 'cp $CLIENT_ENV services/client-store-service/.env'
                     }
                     withCredentials([file(credentialsId: "${ENV_RIDER_SERVICE}", variable: 'RIDER_ENV')]) {
-                        sh 'cp $RIDER_ENV service/rider-service/.env'
+                        sh 'cp $RIDER_ENV services/rider-service/.env'
                     }
                     withCredentials([file(credentialsId: "${ENV_VEHICLE_SERVICE}", variable: 'VEHICLE_ENV')]) {
-                        sh 'cp $VEHICLE_ENV service/vehicle-service/.env'
+                        sh 'cp $VEHICLE_ENV services/vehicle-service/.env'
                     }
                     withCredentials([file(credentialsId: "${ENV_SPARE_SERVICE}", variable: 'SPARE_ENV')]) {
-                        sh 'cp $SPARE_ENV service/spare-parts-service/.env'
+                        sh 'cp $SPARE_ENV services/spare-parts-service/.env'
                     }
                 }
             }
@@ -92,7 +92,7 @@ pipeline {
 
                                 for dir in $CHANGED_DIRS; do
                                     case $dir in
-                                        admin-portal|api-gateway|service/auth-service|service/client-store-service|service/rider-service|service/vehicle-service|service/spare-parts-service)
+                                        admin-portal|api-gateway|services/auth-service|services/client-store-service|services/rider-service|services/vehicle-service|services/spare-parts-service)
                                             echo Building and restarting $dir ...
                                             docker-compose up -d --build $dir
 
