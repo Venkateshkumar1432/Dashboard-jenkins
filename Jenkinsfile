@@ -48,20 +48,45 @@ pipeline {
     }
 
     stage('Send to EC2') {
-      steps {
+    steps {
         sshagent(credentials: [EC2_KEY]) {
-          sh """
-            tar czf app.tar.gz .
-            scp -o StrictHostKeyChecking=no app.tar.gz ${EC2_HOST}:/tmp/
-            ssh -o StrictHostKeyChecking=no ${EC2_HOST} '
-              mkdir -p ${EC2_PATH} &&
-              tar xzf /tmp/app.tar.gz -C ${EC2_PATH} &&
-              rm /tmp/app.tar.gz
-            '
-          """
+            sh """
+                # Create a temporary folder for deployment
+                TMP_DIR=tmp_deploy
+                mkdir -p \$TMP_DIR
+
+                # Copy all project folders and files needed for deployment
+                cp -r admin-portal api-gateway services docker-compose.yml deploy.sh \$TMP_DIR/
+
+                # Copy .env files separately to maintain permissions
+                cp services/auth-service/.env \$TMP_DIR/services/auth-service/.env
+                cp services/client-store-service/.env \$TMP_DIR/services/client-store-service/.env
+                cp services/rider-service/.env \$TMP_DIR/services/rider-service/.env
+                cp services/vehicle-service/.env \$TMP_DIR/services/vehicle-service/.env
+                cp services/spare-parts-service/.env \$TMP_DIR/services/spare-parts-service/.env
+                cp api-gateway/.env \$TMP_DIR/api-gateway/.env
+                cp admin-portal/.env \$TMP_DIR/admin-portal/.env
+
+                # Create tar.gz from the temporary folder
+                tar czf app.tar.gz -C \$TMP_DIR .
+
+                # Clean up temporary folder
+                rm -rf \$TMP_DIR
+
+                # Send tar.gz to EC2
+                scp -o StrictHostKeyChecking=no app.tar.gz ${EC2_HOST}:/tmp/
+
+                # Extract on EC2 and remove tar
+                ssh -o StrictHostKeyChecking=no ${EC2_HOST} '
+                    mkdir -p ${EC2_PATH} &&
+                    tar xzf /tmp/app.tar.gz -C ${EC2_PATH} &&
+                    rm /tmp/app.tar.gz
+                '
+            """
         }
-      }
     }
+}
+
 
     stage('Deploy on EC2') {
       steps {
