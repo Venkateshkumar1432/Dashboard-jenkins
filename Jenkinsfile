@@ -35,13 +35,13 @@ pipeline {
 
                     // Services list
                     def services = [
-                "admin-portal": "ENV_ADMIN",
-                "api-gateway": "ENV_API_GATEWAY",
-                "service/auth-service": "ENV_AUTH_SERVICE",
-                "service/client-store-service": "ENV_CLIENT_SERVICE",
-                "service/rider-service": "ENV_RIDER_SERVICE",
-                "service/vehicle-service": "ENV_VEHICLE_SERVICE",
-                "service/spare-parts-service": "ENV_SPARE_SERVICE"
+                "admin-portal": "admin-portal-env-file",
+                "api-gateway": "api-gateway-env-file",
+                "service/auth-service": "auth-service-env-file",
+                "service/client-store-service": "client-store-service-env-file",
+                "service/rider-service": "rider-service-env-file",
+                "service/vehicle-service": "vehicle-service-env-file",
+                "service/spare-parts-service": "spare-parts-service-env-file"
             ]
 
 
