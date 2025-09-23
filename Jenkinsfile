@@ -35,22 +35,23 @@ pipeline {
 
                     // Services list
                     def services = [
-                        ['env': 'admin-portal-env-file', 'path': 'admin-portal'],
-                        ['env': 'api-gateway-env-file', 'path': 'api-gateway'],
-                        ['env': 'auth-service-env-file', 'path': 'service/auth-service'],
-                        ['env': 'client-store-service-env-file', 'path': 'service/client-store-service'],
-                        ['env': 'rider-service-env-file', 'path': 'service/rider-service'],
-                        ['env': 'vehicle-service-env-file', 'path': 'service/vehicle-service'],
-                        ['env': 'spare-parts-service-env-file', 'path': 'service/spare-parts-service']
-                    ]
+                "admin-portal": "ENV_ADMIN",
+                "api-gateway": "ENV_API_GATEWAY",
+                "service/auth-service": "ENV_AUTH_SERVICE",
+                "service/client-store-service": "ENV_CLIENT_SERVICE",
+                "service/rider-service": "ENV_RIDER_SERVICE",
+                "service/vehicle-service": "ENV_VEHICLE_SERVICE",
+                "service/spare-parts-service": "ENV_SPARE_SERVICE"
+            ]
+
 
                     // Copy/overwrite env files
-                    services.each { s ->
-                        sh "mkdir -p ${s.path} && chmod 775 ${s.path}"
-                        withCredentials([file(credentialsId: "${s.env}", variable: 'ENV_FILE')]) {
-                            sh "cp -f \$ENV_FILE ${s.path}/.env"
-                        }
-                    }
+                services.each { dir, credId ->
+                sh "mkdir -p ${dir} && chmod 775 ${dir}"
+                withCredentials([file(variable: 'ENV_FILE', credentialsId: credId)]) {
+                    sh "cp -f \$ENV_FILE ${dir}/.env"
+                }
+            }
                 }
             }
         }
