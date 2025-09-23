@@ -127,7 +127,7 @@ export default function Login() {
           <Alert severity="info" sx={{ width: '100%', mt: 3, mb: 1 }}>
             <Typography variant="body2">
               <strong>Development Credentials:</strong><br />
-              Email: admin@ev91.com<br />
+              Email: superadmin@ev91.com<br />
               Password: SuperAdmin123!
             </Typography>
           </Alert>
