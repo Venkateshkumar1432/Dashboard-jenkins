@@ -35,13 +35,13 @@ pipeline {
 
                     // Services list
                     def services = [
-                        ['env': 'ADMIN_ENV', 'path': 'admin-portal'],
-                        ['env': 'GATEWAY_ENV', 'path': 'api-gateway'],
-                        ['env': 'AUTH_ENV', 'path': 'service/auth-service'],
-                        ['env': 'CLIENT_ENV', 'path': 'service/client-store-service'],
-                        ['env': 'RIDER_ENV', 'path': 'service/rider-service'],
-                        ['env': 'VEHICLE_ENV', 'path': 'service/vehicle-service'],
-                        ['env': 'SPARE_ENV', 'path': 'service/spare-parts-service']
+                        ['env': 'ENV_ADMIN_PORTAL', 'path': 'admin-portal'],
+                        ['env': 'ENV_API_GATEWAY', 'path': 'api-gateway'],
+                        ['env': 'ENV_AUTH_SERVICE', 'path': 'service/auth-service'],
+                        ['env': 'ENV_CLIENT_SERVICE', 'path': 'service/client-store-service'],
+                        ['env': 'ENV_RIDER_SERVICE', 'path': 'service/rider-service'],
+                        ['env': 'ENV_VEHICLE_SERVICE', 'path': 'service/vehicle-service'],
+                        ['env': 'ENV_SPARE_SERVICE', 'path': 'service/spare-parts-service']
                     ]
 
                     // Copy/overwrite env files
