@@ -57,64 +57,107 @@ pipeline {
 
 
         stage('Deploy to EC2') {
-            steps {
-                sshagent([SSH_CREDENTIALS]) {
-                    script {
-                        def firstBuild = currentBuild.getPreviousBuild() == null
+    steps {
+        sshagent([SSH_CREDENTIALS]) {
+            script {
+                def firstBuild = currentBuild.getPreviousBuild() == null
 
-                        if (firstBuild) {
-                            echo "🚀 First build → build all services + prisma setup"
-                            sh '''
-                            rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" ./ ubuntu@3.110.103.89:~/Dashboard-jenkins
+                if (firstBuild) {
+                    echo "🚀 First build → build all services + prisma setup"
+                    sh '''
+                        rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" ./ ubuntu@3.110.103.89:~/Dashboard-jenkins
 
-                            ssh -o StrictHostKeyChecking=no ubuntu@3.110.103.89 "
-                                set -e
-                                cd ~/Dashboard-jenkins
-                                docker-compose down || true
-                                docker-compose up -d --build
+                        ssh -o StrictHostKeyChecking=no ubuntu@3.110.103.89 "
+                            set -e
+                            cd ~/Dashboard-jenkins
+                            docker-compose down || true
+                            docker-compose up -d --build
 
-                                # Run prisma commands in backend services
-                                cd ../auth-service && npx prisma db push && npx prisma db seed && npx tsx prisma/seed
-                                cd ../client-store-service && npx prisma db push && npx prisma db seed && npx tsx prisma/seed
-                                cd ../rider-service && npx prisma db push && npx prisma db seed && npx tsx prisma/seed
-                                cd ../vehicle-service && npx prisma db push && npx prisma db seed && npx tsx prisma/seed
-                                cd ../spare-parts-service && npx prisma db push && npx prisma db seed && npx tsx prisma/seed
-                            "
-                            '''
-                        } else {
-                            echo "🔄 Subsequent build → deploy changed services only"
-                            sh '''
-                            rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" ./ ubuntu@3.110.103.89:~/Dashboard-jenkins
+                            # Run prisma commands in all backend services
+                            for service in auth-service client-store-service rider-service vehicle-service spare-parts-service; do
+                                cd services/$service
+                                npx prisma db push
+                                npx prisma db seed
+                                npx tsx prisma/seed
+                                cd -
+                            done
+                        "
+                    '''
+                } else {
+                    echo "🔄 Subsequent build → deploy changed services only"
+                    sh '''
+                        rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" ./ ubuntu@3.110.103.89:~/Dashboard-jenkins
 
-                            ssh -o StrictHostKeyChecking=no ubuntu@3.110.103.89 "
-                                set -e
-                                cd ~/Dashboard-jenkins
+                        ssh -o StrictHostKeyChecking=no ubuntu@3.110.103.89 "
+                            set -e
+                            cd ~/Dashboard-jenkins
 
-                                # Find changed dirs from last commit
-                                CHANGED_DIRS=$(git diff --name-only HEAD~1 HEAD | cut -d/ -f1-2 | sort -u)
-                                echo Changed directories: $CHANGED_DIRS
+                            # Find changed directories from last commit
+                            CHANGED_DIRS=$(git diff --name-only HEAD~1 HEAD | grep -E '^(admin-portal|api-gateway|services/)' | cut -d/ -f1-2 | sort -u)
+                            echo "Changed directories: $CHANGED_DIRS"
 
-                                for dir in $CHANGED_DIRS; do
-                                    case $dir in
-                                        admin-portal|api-gateway|services/auth-service|services/client-store-service|services/rider-service|services/vehicle-service|services/spare-parts-service)
-                                            echo Building and restarting $dir ...
-                                            docker-compose up -d --build $dir
-
-                                            # If schema.prisma changed, run prisma commands
-                                            if git diff --name-only HEAD~1 HEAD | grep "$dir/prisma/schema.prisma"; then
-                                                echo "Schema changed in $dir → running prisma db push/seed"
-                                                cd $dir && npx prisma db push && npx prisma db seed && npx tsx prisma/seed
-                                                cd -
-                                            fi
-                                            ;;
-                                    esac
-                                done
-                            "
-                            '''
-                        }
-                    }
+                            echo \"$CHANGED_DIRS\" | while read dir; do
+                                case \"$dir\" in
+                                    admin-portal)
+                                        echo \"Building and restarting admin-portal...\"
+                                        docker-compose up -d --build admin-portal
+                                        ;;
+                                    api-gateway)
+                                        echo \"Building and restarting api-gateway...\"
+                                        docker-compose up -d --build api-gateway
+                                        ;;
+                                    services/auth-service)
+                                        echo \"Building and restarting auth-service...\"
+                                        docker-compose up -d --build auth-service
+                                        if git diff --name-only HEAD~1 HEAD | grep \"$dir/prisma/schema.prisma\"; then
+                                            cd services/auth-service && npx prisma db push && npx prisma db seed && npx tsx prisma/seed
+                                            cd -
+                                        fi
+                                        ;;
+                                    services/client-store-service)
+                                        echo \"Building and restarting client-store-service...\"
+                                        docker-compose up -d --build client-store-service
+                                        if git diff --name-only HEAD~1 HEAD | grep \"$dir/prisma/schema.prisma\"; then
+                                            cd services/client-store-service && npx prisma db push && npx prisma db seed && npx tsx prisma/seed
+                                            cd -
+                                        fi
+                                        ;;
+                                    services/rider-service)
+                                        echo \"Building and restarting rider-service...\"
+                                        docker-compose up -d --build rider-service
+                                        if git diff --name-only HEAD~1 HEAD | grep \"$dir/prisma/schema.prisma\"; then
+                                            cd services/rider-service && npx prisma db push && npx prisma db seed && npx tsx prisma/seed
+                                            cd -
+                                        fi
+                                        ;;
+                                    services/vehicle-service)
+                                        echo \"Building and restarting vehicle-service...\"
+                                        docker-compose up -d --build vehicle-service
+                                        if git diff --name-only HEAD~1 HEAD | grep \"$dir/prisma/schema.prisma\"; then
+                                            cd services/vehicle-service && npx prisma db push && npx prisma db seed && npx tsx prisma/seed
+                                            cd -
+                                        fi
+                                        ;;
+                                    services/spare-parts-service)
+                                        echo \"Building and restarting spare-parts-service...\"
+                                        docker-compose up -d --build spare-parts-service
+                                        if git diff --name-only HEAD~1 HEAD | grep \"$dir/prisma/schema.prisma\"; then
+                                            cd services/spare-parts-service && npx prisma db push && npx prisma db seed && npx tsx prisma/seed
+                                            cd -
+                                        fi
+                                        ;;
+                                    *)
+                                        echo \"Skipping $dir\"
+                                        ;;
+                                esac
+                            done
+                        "
+                    '''
                 }
             }
         }
+    }
+}
+
     }
 }
