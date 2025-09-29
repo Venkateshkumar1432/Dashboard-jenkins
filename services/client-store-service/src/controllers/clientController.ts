@@ -147,7 +147,7 @@ export const createClient = asyncHandler(
           taxCategory,
           discountCategory,
           baseOrderRate: parseFloat(baseOrderRate.toString()),
-          rateEffectiveDate: rateEffectiveDate
+          rateEffectiveDate: rateEffectiveDate && rateEffectiveDate.trim() !== ''
             ? new Date(rateEffectiveDate)
             : new Date(),
           rateType: rateType || "fixed",
@@ -180,7 +180,7 @@ export const createClient = asyncHandler(
             : 100.0,
           payoutDay: payoutDay || "Friday",
           clientStatus: clientStatus || "Active",
-          acquisitionDate: acquisitionDate
+          acquisitionDate: acquisitionDate && acquisitionDate.trim() !== ''
             ? new Date(acquisitionDate)
             : new Date(),
           accountManagerId,
